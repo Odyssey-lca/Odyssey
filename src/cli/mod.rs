@@ -15,7 +15,7 @@ use crate::cli::{
 #[command(propagate_version = true)]
 pub struct Cli {
     /// Global verbosity flag
-    #[arg(short, long, global = true)]
+    #[arg(short, long)]
     verbose: bool,
 
     #[command(subcommand)]
@@ -32,7 +32,7 @@ impl Cli {
                 Ok(()) => {}
                 Err(e) => eprintln!("Error while searching: {}", e),
             },
-            Commands::Run(args) => match run_lca(&args.path) {
+            Commands::Run(args) => match run_lca(&args.path, args.method) {
                 Ok(()) => {}
                 Err(e) => eprintln!("Error while runing: {}", e),
             },

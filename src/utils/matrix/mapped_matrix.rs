@@ -311,7 +311,6 @@ where
     /// assert!(x == MV!["a" => 10.0, "b" => 5.]);
     /// ```
     pub fn dot(&mut self, rhs: &MappedVector<C>) -> MappedVector<R> {
-        println!("{} {} {}", self.cols.len(), self.rows.len(), rhs.nrows());
         let mut res = vec![0f64; self.rows.len()];
         unsafe {
             csparse_matvec(&self.cs.as_ffi(), rhs.values.as_ptr(), res.as_mut_ptr());

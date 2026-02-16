@@ -13,6 +13,9 @@ use serde::{Deserialize, Serialize};
 #[command(args_conflicts_with_subcommands = true)]
 pub struct RunCommand {
     pub path: PathBuf,
+
+    #[arg(short, long, default_value_t = String::from("ef31"))]
+    pub method: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -115,35 +118,35 @@ fn import_flow(
     Ok(())
 }
 
-pub fn run_lca(path: &Path) -> Result<()> {
+pub fn run_lca(path: &Path, method: String) -> Result<()> {
     let search = Search::new()?;
 
     let file = File::open(path)?;
     let reader = BufReader::new(&file);
     let activity: Activity = serde_yaml::from_reader(reader)?;
 
-    let mut global_res = ImpactCategory::get_empty_vector();
+    let mut global_res = ImpactCategory::get_empty_vector(&method);
     print!("\"flow\"");
     for i in 0..global_res.values.len() {
-        if let Some(ImpactCategory::EF31(e)) = global_res.mapping.get_by_right(&i) {
-            print!(";{:?}", e);
+        if let Some(ic) = global_res.mapping.get_by_right(&i) {
+            print!(";{:?}", ic);
         }
     }
     println!();
 
     for e in activity.exchanges {
-        let mut res = ImpactCategory::get_empty_vector();
+        let mut res = ImpactCategory::get_empty_vector(&method);
         let mut databases: HashMap<String, Box<dyn Database>> = HashMap::new();
         let mut rfs: HashMap<String, MappedVector<String>> = HashMap::new();
         import_flow(&e, &mut databases, &mut rfs, &search, 1f64)?;
 
         for (db, rf) in rfs.iter() {
-            res += databases.get_mut(db).unwrap().lca(rf)?;
+            res += databases.get_mut(db).unwrap().lca(rf, &method)?;
         }
         global_res += res.clone();
         print!("{:?}", e.name.unwrap_or("None".to_string()));
         for i in 0..res.values.len() {
-            if let Some(ImpactCategory::EF31(_)) = res.mapping.get_by_right(&i) {
+            if res.mapping.get_by_right(&i).is_some() {
                 print!(";{:.4e}", res.values[i])
             }
         }
@@ -152,7 +155,7 @@ pub fn run_lca(path: &Path) -> Result<()> {
 
     print!("\"all\"");
     for i in 0..global_res.values.len() {
-        if let Some(ImpactCategory::EF31(_)) = global_res.mapping.get_by_right(&i) {
+        if global_res.mapping.get_by_right(&i).is_some() {
             print!(";{:.4e}", global_res.values[i])
         }
     }

@@ -1,5 +1,4 @@
 pub mod ecospold2;
-pub mod impacts;
 
 use crate::{
     comput::lca::Database,

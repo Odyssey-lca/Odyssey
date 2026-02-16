@@ -5,12 +5,11 @@ use std::fs::{self, File};
 use std::io::{BufReader, BufWriter};
 use std::{collections::HashMap, path::Path};
 
-use impacts::ef31::construct_impact_matrix;
-
 use crate::comput::impacts::ImpactCategory;
 use crate::comput::lca::Database;
 use crate::errors::Result;
 use crate::parsers::ecospold2::build::{build_candidates, build_matrices};
+use crate::parsers::ecospold2::impacts::get_impact_matrices;
 use crate::parsers::ecospold2::parse::parse_ecospold2;
 use crate::utils::constants::DATABASES_PATH;
 use crate::utils::matrix::{MappedMatrix, MappedVector};
@@ -43,9 +42,8 @@ impl Ecoinvent {
         let candidates = build_candidates(&mut processes, version);
         let (technology, intervention) = build_matrices(processes)?;
         upload_lcia_files()?;
-        let ef31 = construct_impact_matrix(version, &intervention)?;
-        let mut classifications = HashMap::new();
-        classifications.insert("ef31".to_string(), ef31);
+        let classifications =
+            get_impact_matrices(version, vec!["ef31", "cml", "traci"], &intervention)?;
         Ok(Ecoinvent {
             version: version.to_string(),
             technology,
@@ -94,8 +92,8 @@ impl Database for Ecoinvent {
         self.technology.zeros_like_cols()
     }
 
-    fn empty_impacts(&self) -> MappedVector<ImpactCategory> {
-        self.classifications.get("ef31").unwrap().zeros_like_rows()
+    fn empty_impacts(&self, method: &str) -> MappedVector<ImpactCategory> {
+        self.classifications.get(method).unwrap().zeros_like_rows()
     }
 
     fn list_candidates(&self) -> Vec<&InventoryItem> {
@@ -113,9 +111,13 @@ impl Database for Ecoinvent {
         Ok(g)
     }
 
-    fn lcia(&mut self, g: &MappedVector<String>) -> Result<MappedVector<ImpactCategory>> {
+    fn lcia(
+        &mut self,
+        g: &MappedVector<String>,
+        method: &str,
+    ) -> Result<MappedVector<ImpactCategory>> {
         // TODO: Verify columns matching in debug
-        let ef = self.classifications.get_mut("ef31").unwrap();
+        let ef = self.classifications.get_mut(method).unwrap();
         let h = ef.dot(g);
         Ok(h)
     }

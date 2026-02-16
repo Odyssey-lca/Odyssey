@@ -1,149 +1,136 @@
-use std::fs::File;
-
 use crate::{
-    comput::impacts::ImpactCategory,
+    comput::impacts::{ImpactCategory, EF31},
     errors::Result,
-    parsers::impacts::ef31::EF31Impacts,
-    utils::{
-        constants::DATABASES_PATH,
-        matrix::{MappedMatrix, MappedMatrixBuilder},
-    },
+    parsers::ecospold2::impacts::misc::{get_ecoinvent_mapping_file, get_empty_matrix},
+    utils::matrix::{MappedMatrix, MappedMatrixBuilder},
 };
 
 #[rustfmt::skip]
 #[derive(Debug, serde::Deserialize)]
-pub struct EcoinventEF31Impacts {
-    #[serde(rename = "elementary_flow_id")]
-    pub elementary_id: String,
-    
-    #[serde(rename = "climate change|global warming potential (GWP100)")]
+pub struct EF31Impacts {
+    #[serde(alias = "elementary_flow_id")]
+    pub flow_id: String,
+
+    #[serde(alias = "climate change|global warming potential (GWP100)")]
     pub gwp100: Option<f64>,
-    
-    #[serde(rename = "acidification|accumulated exceedance (AE)")]
+
+    #[serde(alias = "acidification|accumulated exceedance (AE)")]
     pub acidification_ae: Option<f64>,
-    
-    #[serde(rename = "climate change: biogenic|global warming potential (GWP100)")]
+
+    #[serde(alias = "climate change: biogenic|global warming potential (GWP100)")]
     pub biogenic_gwp100: Option<f64>,
-    
-    #[serde(rename = "climate change: fossil|global warming potential (GWP100)")]
+
+    #[serde(alias = "climate change: fossil|global warming potential (GWP100)")]
     pub fossil_gwp100: Option<f64>,
     
-    #[serde(rename = "climate change: land use and land use change|global warming potential (GWP100)")]
+    #[serde(alias = "climate change: land use and land use change|global warming potential (GWP100)")]
     pub climate_change_land_use: Option<f64>,
     
-    #[serde(rename = "particulate matter formation|impact on human health")]
+    #[serde(alias = "particulate matter formation|impact on human health")]
     pub particul_matter: Option<f64>,
     
-    #[serde(rename = "ecotoxicity: freshwater|comparative toxic unit for ecosystems (CTUe)")]
+    #[serde(alias = "ecotoxicity: freshwater|comparative toxic unit for ecosystems (CTUe)")]
     pub ecotoxicity_freshwater: Option<f64>,
-   
-    #[serde(rename = "ecotoxicity: freshwater, inorganics|comparative toxic unit for ecosystems (CTUe)")]
+
+    #[serde(alias = "ecotoxicity: freshwater, inorganics|comparative toxic unit for ecosystems (CTUe)")]
     pub ecotoxicity_freshwater_inorganics: Option<f64>,
-    
-    #[serde(rename = "ecotoxicity: freshwater, organics|comparative toxic unit for ecosystems (CTUe)")]
+
+    #[serde(alias = "ecotoxicity: freshwater, organics|comparative toxic unit for ecosystems (CTUe)")]
     pub ecotoxicity_freshwater_organics: Option<f64>,
     
-    #[serde(rename = "eutrophication: marine|fraction of nutrients reaching marine end compartment (N)")]
+    #[serde(alias = "eutrophication: marine|fraction of nutrients reaching marine end compartment (N)")]
     pub eutrophication_marine: Option<f64>,
-    
-    #[serde(rename = "eutrophication: freshwater|fraction of nutrients reaching freshwater end compartment (P)")]
+
+    #[serde(alias = "eutrophication: freshwater|fraction of nutrients reaching freshwater end compartment (P)")]
     pub eutrophication_freshwater: Option<f64>,
-    
-    #[serde(rename = "eutrophication: terrestrial|accumulated exceedance (AE)")]
+
+    #[serde(alias = "eutrophication: terrestrial|accumulated exceedance (AE)")]
     pub eutrophication_terrestrial: Option<f64>,
-   
-    #[serde(rename = "human toxicity: carcinogenic|comparative toxic unit for human (CTUh)")]
+
+    #[serde(alias = "human toxicity: carcinogenic|comparative toxic unit for human (CTUh)")]
     pub human_toxicity_carcinogenic: Option<f64>,
-    
-    #[serde(rename = "human toxicity: carcinogenic, inorganics|comparative toxic unit for human (CTUh)")]
+
+    #[serde(alias = "human toxicity: carcinogenic, inorganics|comparative toxic unit for human (CTUh)")]
     pub human_toxicity_carcinogenic_inorganics: Option<f64>,
-    
-    #[serde(rename = "human toxicity: carcinogenic, organics|comparative toxic unit for human (CTUh)")]
+
+    #[serde(alias = "human toxicity: carcinogenic, organics|comparative toxic unit for human (CTUh)")]
     pub human_toxicity_carcinogenic_organics: Option<f64>,
-    
-    #[serde(rename = "human toxicity: non-carcinogenic|comparative toxic unit for human (CTUh)")]
+
+    #[serde(alias = "human toxicity: non-carcinogenic|comparative toxic unit for human (CTUh)")]
     pub human_toxicity_non_cacrinogenic: Option<f64>,
     
-    #[serde(rename = "human toxicity: non-carcinogenic, inorganics|comparative toxic unit for human (CTUh)")]
+    #[serde(alias = "human toxicity: non-carcinogenic, inorganics|comparative toxic unit for human (CTUh)")]
     pub human_toxicity_non_cacinogenic_inorganics: Option<f64>,
     
-    #[serde(rename = "human toxicity: non-carcinogenic, organics|comparative toxic unit for human (CTUh)")]
+    #[serde(alias = "human toxicity: non-carcinogenic, organics|comparative toxic unit for human (CTUh)")]
     pub human_toxicity_non_cacinogenic_organics: Option<f64>,
     
-    #[serde(rename = "ionising radiation: human health|human exposure efficiency relative to u235")]
+    #[serde(alias = "ionising radiation: human health|human exposure efficiency relative to u235")]
     pub ionising_radiation: Option<f64>,
-    
-    #[serde(rename = "land use|soil quality index")]
+
+    #[serde(alias = "land use|soil quality index")]
     pub land_use: Option<f64>,
 
-    #[serde(rename= "ozone depletion|ozone depletion potential (ODP)")]
+    #[serde(alias= "ozone depletion|ozone depletion potential (ODP)")]
     pub ozone_depletion: Option<f64>,
     
-    #[serde(rename = "photochemical oxidant formation: human health|tropospheric ozone concentration increase")]
+    #[serde(alias = "photochemical oxidant formation: human health|tropospheric ozone concentration increase")]
     pub photochemical_oxidant: Option<f64>,
     
-    #[serde(rename = "energy resources: non-renewable|abiotic depletion potential (ADP): fossil fuels")]
+    #[serde(alias = "energy resources: non-renewable|abiotic depletion potential (ADP): fossil fuels")]
     pub energy_resources_non_renewable: Option<f64>,
     
-    #[serde(rename = "material resources: metals/minerals|abiotic depletion potential (ADP): elements (ultimate reserves)")]
-    pub energy_resources_metals_minerals: Option<f64>,
+    #[serde(alias = "material resources: metals/minerals|abiotic depletion potential (ADP): elements (ultimate reserves)")]
+    pub resources_metals_minerals: Option<f64>,
     
-    #[serde(rename = "water use|user deprivation potential (deprivation-weighted water consumption)")]
+    #[serde(alias = "water use|user deprivation potential (deprivation-weighted water consumption)")]
     pub water_use: Option<f64>,
 }
 
-impl From<EcoinventEF31Impacts> for EF31Impacts {
-    fn from(source: EcoinventEF31Impacts) -> Self {
-        EF31Impacts {
-            gwp100: source.gwp100,
-            acidification_ae: source.acidification_ae,
-            biogenic_gwp100: source.biogenic_gwp100,
-            fossil_gwp100: source.fossil_gwp100,
-            climate_change_land_use: source.climate_change_land_use,
-            particul_matter: source.particul_matter,
-            ecotoxicity_freshwater: source.ecotoxicity_freshwater,
-            ecotoxicity_freshwater_inorganics: source.ecotoxicity_freshwater_inorganics,
-            ecotoxicity_freshwater_organics: source.ecotoxicity_freshwater_organics,
-            eutrophication_marine: source.eutrophication_marine,
-            eutrophication_freshwater: source.eutrophication_freshwater,
-            eutrophication_terrestrial: source.eutrophication_terrestrial,
-            human_toxicity_carcinogenic: source.human_toxicity_carcinogenic,
-            human_toxicity_carcinogenic_inorganics: source.human_toxicity_carcinogenic_inorganics,
-            human_toxicity_carcinogenic_organics: source.human_toxicity_carcinogenic_organics,
-            human_toxicity_non_cacrinogenic: source.human_toxicity_non_cacrinogenic,
-            human_toxicity_non_cacinogenic_inorganics: source
-                .human_toxicity_non_cacinogenic_inorganics,
-            human_toxicity_non_cacinogenic_organics: source.human_toxicity_non_cacinogenic_organics,
-            ionising_radiation: source.ionising_radiation,
-            land_use: source.land_use,
-            ozone_depletion: source.ozone_depletion,
-            photochemical_oxidant: source.photochemical_oxidant,
-            energy_resources_non_renewable: source.energy_resources_non_renewable,
-            energy_resources_metals_minerals: source.energy_resources_metals_minerals,
-            water_use: source.water_use,
-        }
+#[rustfmt::skip]
+impl EF31Impacts {
+
+  fn add_triplets(&self, a: &mut MappedMatrixBuilder<ImpactCategory, String>, col: String) {
+        // Order is important
+        a.add_triplet(ImpactCategory::EF31(EF31::Gwp100), col.clone(), self.gwp100.unwrap_or(0.));
+        a.add_triplet(ImpactCategory::EF31(EF31::Acidification), col.clone(), self.acidification_ae.unwrap_or(0.));
+        a.add_triplet(ImpactCategory::EF31(EF31::BiogenicGwp100), col.clone(), self.biogenic_gwp100.unwrap_or(0.));
+        a.add_triplet(ImpactCategory::EF31(EF31::FossilGwp100), col.clone(), self.fossil_gwp100.unwrap_or(0.));
+        a.add_triplet(ImpactCategory::EF31(EF31::ClimateChangeLandUse), col.clone(), self.climate_change_land_use.unwrap_or(0.));
+        a.add_triplet(ImpactCategory::EF31(EF31::OzoneDepletion), col.clone(), self.ozone_depletion.unwrap_or(0.));
+        a.add_triplet(ImpactCategory::EF31(EF31::ParticulMatter), col.clone(), self.particul_matter.unwrap_or(0.));
+        a.add_triplet(ImpactCategory::EF31(EF31::EcotoxicityFreshwater), col.clone(), self.ecotoxicity_freshwater.unwrap_or(0.));
+        a.add_triplet(ImpactCategory::EF31(EF31::EcotoxicityFreshwaterInorganics), col.clone(), self.ecotoxicity_freshwater_inorganics.unwrap_or(0.));
+        a.add_triplet(ImpactCategory::EF31(EF31::EcotoxicityFreshwaterOrganics), col.clone(), self.ecotoxicity_freshwater_organics.unwrap_or(0.));
+        a.add_triplet(ImpactCategory::EF31(EF31::EutrophicationMarine), col.clone(), self.eutrophication_marine.unwrap_or(0.));
+        a.add_triplet(ImpactCategory::EF31(EF31::EutrophicationFreshwater), col.clone(), self.eutrophication_freshwater.unwrap_or(0.));
+        a.add_triplet(ImpactCategory::EF31(EF31::EutrophicationTerrestrial), col.clone(), self.eutrophication_terrestrial.unwrap_or(0.));
+        a.add_triplet(ImpactCategory::EF31(EF31::HumanToxicityCarcinogenic), col.clone(), self.human_toxicity_carcinogenic.unwrap_or(0.));
+        a.add_triplet(ImpactCategory::EF31(EF31::HumanToxicityCarcinogenicInorganics), col.clone(), self.human_toxicity_carcinogenic_inorganics.unwrap_or(0.));
+        a.add_triplet(ImpactCategory::EF31(EF31::HumanToxicityCarcinogenicOrganics), col.clone(), self.human_toxicity_carcinogenic_organics.unwrap_or(0.));
+        a.add_triplet(ImpactCategory::EF31(EF31::HumanToxicityNonCacrinogenic), col.clone(), self.human_toxicity_non_cacrinogenic.unwrap_or(0.));
+        a.add_triplet(ImpactCategory::EF31(EF31::HumanToxicityNonCacinogenicInorganics), col.clone(), self.human_toxicity_non_cacinogenic_inorganics.unwrap_or(0.));
+        a.add_triplet(ImpactCategory::EF31(EF31::HumanToxicityNonCacinogenicOrganics), col.clone(), self.human_toxicity_non_cacinogenic_organics.unwrap_or(0.));
+        a.add_triplet(ImpactCategory::EF31(EF31::IonisingRadiation), col.clone(), self.ionising_radiation.unwrap_or(0.));
+        a.add_triplet(ImpactCategory::EF31(EF31::LandUse), col.clone(), self.land_use.unwrap_or(0.));
+        a.add_triplet(ImpactCategory::EF31(EF31::PhotochemicalOxidant), col.clone(), self.photochemical_oxidant.unwrap_or(0.));
+        a.add_triplet(ImpactCategory::EF31(EF31::EnergyResourcesNonRenewable), col.clone(), self.energy_resources_non_renewable.unwrap_or(0.));
+        a.add_triplet(ImpactCategory::EF31(EF31::ResourcesMetalsMinerals), col.clone(), self.resources_metals_minerals.unwrap_or(0.));
+        a.add_triplet(ImpactCategory::EF31(EF31::WaterUse), col.clone(), self.water_use.unwrap_or(0.));
     }
 }
 
-pub fn construct_impact_matrix(
+pub fn get_ef31_matrix(
     version: &str,
     intervention: &MappedMatrix<String, String>,
 ) -> Result<MappedMatrix<ImpactCategory, String>> {
-    let file = File::open(
-        DATABASES_PATH
-            .join("ecoinvent_lcia")
-            .join(format!("{}/methods_mapped", version))
-            .join(format!("EF v3.1_mapped_{}.csv", version)),
-    )?;
-    let mut rdr = csv::Reader::from_reader(file);
-    let mut mat = MappedMatrixBuilder::new();
-    mat.copy_rows_into_cols(intervention);
-    mat.copy_vec_into_rows(&ImpactCategory::get_empty_vector());
+    let mut mat = get_empty_matrix(EF31::get_empty_vector(), intervention);
+    let mut rdr = get_ecoinvent_mapping_file(version, "EF v3.1")?;
     for result in rdr.deserialize() {
-        let record: EcoinventEF31Impacts = result?;
-        let elementary_id = record.elementary_id.clone();
+        let record: EF31Impacts = result?;
+        let elementary_id = record.flow_id.clone();
         if intervention.contains_row(&elementary_id) {
-            EF31Impacts::from(record).add_triplets(&mut mat, elementary_id);
+            record.add_triplets(&mut mat, elementary_id);
         }
     }
     Ok(mat.build())

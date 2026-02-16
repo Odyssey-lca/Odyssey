@@ -1,9 +1,11 @@
+use std::sync::Arc;
+
 use bimap::BiHashMap;
 use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
-use crate::comput::impacts::ImpactCategory;
+use crate::{comput::impacts::ImpactCategory, utils::matrix::MappedVector};
 
 #[derive(PartialEq, std::cmp::Eq, Clone, Serialize, Deserialize, Debug, Hash, EnumIter)]
 pub enum EF31 {
@@ -30,16 +32,17 @@ pub enum EF31 {
     OzoneDepletion,
     PhotochemicalOxidant,
     EnergyResourcesNonRenewable,
-    EnergyResourcesMetalsMinerals,
+    ResourcesMetalsMinerals,
     WaterUse,
 }
 
 impl EF31 {
-    pub fn get_mapping() -> BiHashMap<ImpactCategory, usize> {
+    pub fn get_empty_vector() -> MappedVector<ImpactCategory> {
         let mut mapping = BiHashMap::new();
         EF31::iter().enumerate().for_each(|(i, c)| {
             let _ = mapping.insert(ImpactCategory::EF31(c), i);
         });
-        mapping
+        let length = mapping.len();
+        MappedVector::new(Arc::new(mapping), vec![0.; length])
     }
 }

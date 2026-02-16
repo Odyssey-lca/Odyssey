@@ -1,24 +1,31 @@
-use std::{hash::Hash, sync::Arc};
-
-use bimap::BiHashMap;
 use serde::{Deserialize, Serialize};
+use std::hash::Hash;
 
+pub mod cml;
 pub mod ef31;
+pub mod traci;
 
 pub use ef31::EF31;
 
-use crate::utils::matrix::MappedVector;
+use crate::{
+    comput::impacts::{cml::CML, traci::TRACI},
+    utils::matrix::MappedVector,
+};
 
 #[derive(PartialEq, std::cmp::Eq, Clone, Serialize, Deserialize, Debug, Hash)]
 pub enum ImpactCategory {
     EF31(EF31),
+    CML(CML),
+    TRACI(TRACI),
 }
 
 impl ImpactCategory {
-    pub fn get_empty_vector() -> MappedVector<ImpactCategory> {
-        let mut mappings = BiHashMap::new();
-        mappings.extend(EF31::get_mapping());
-        let length = mappings.len();
-        MappedVector::new(Arc::new(mappings), vec![0.; length])
+    pub fn get_empty_vector(method: &str) -> MappedVector<ImpactCategory> {
+        match method {
+            "ef31" => EF31::get_empty_vector(),
+            "cml" => CML::get_empty_vector(),
+            "traci" => TRACI::get_empty_vector(),
+            a => panic!("Unknown Method: {}", a),
+        }
     }
 }
