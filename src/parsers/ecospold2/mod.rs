@@ -100,25 +100,19 @@ impl Database for Ecoinvent {
         self.candidates.values().collect()
     }
 
-    fn find_candidate(&self, id: &str) -> Option<&InventoryItem> {
+    fn get_candidate(&self, id: &str) -> Option<&InventoryItem> {
         self.candidates.get(id)
     }
 
-    fn lci(&mut self, f: &MappedVector<String>) -> Result<MappedVector<String>> {
-        // TODO: Verify columns matching in debug
-        let s = self.technology.solve(f);
-        let g = self.intervention.dot(&s);
-        Ok(g)
-    }
-
-    fn lcia(
+    fn lca(
         &mut self,
-        g: &MappedVector<String>,
+        f: &MappedVector<String>,
         method: &str,
     ) -> Result<MappedVector<ImpactCategory>> {
-        // TODO: Verify columns matching in debug
+        let s = self.technology.solve(f);
+        let g = self.intervention.dot(&s);
         let ef = self.classifications.get_mut(method).unwrap();
-        let h = ef.dot(g);
+        let h = ef.dot(&g);
         Ok(h)
     }
 }
