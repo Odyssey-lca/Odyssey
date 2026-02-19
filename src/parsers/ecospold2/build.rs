@@ -66,7 +66,7 @@ pub fn build_matrices(
     Ok((a.build(), b.build()))
 }
 
-pub fn build_candidates(
+pub fn build_search_candidates(
     processes: &mut HashMap<String, EcoSpold>,
     version: &str,
 ) -> HashMap<String, InventoryItem> {

@@ -8,7 +8,7 @@ use std::{collections::HashMap, path::Path};
 use crate::comput::impacts::ImpactCategory;
 use crate::comput::lca::Database;
 use crate::errors::Result;
-use crate::parsers::ecospold2::build::{build_candidates, build_matrices};
+use crate::parsers::ecospold2::build::{build_matrices, build_search_candidates};
 use crate::parsers::ecospold2::impacts::get_impact_matrices;
 use crate::parsers::ecospold2::parse::parse_ecospold2;
 use crate::utils::constants::DATABASES_PATH;
@@ -39,7 +39,7 @@ impl Ecoinvent {
 
     fn load_from_files(version: &str, path: &Path) -> Result<Self> {
         let mut processes = parse_ecospold2(path)?;
-        let candidates = build_candidates(&mut processes, version);
+        let candidates = build_search_candidates(&mut processes, version);
         let (technology, intervention) = build_matrices(processes)?;
         upload_lcia_files()?;
         let classifications =
