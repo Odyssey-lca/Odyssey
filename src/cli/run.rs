@@ -2,11 +2,10 @@ use std::path::PathBuf;
 use std::{collections::HashMap, fs::File, io::BufReader, path::Path};
 
 use clap::Args;
+use mapped_sparse_matrix::MappedVector;
 use odyssey::comput::impacts::ImpactCategory;
 use odyssey::utils::search::Search;
-use odyssey::{
-    comput::lca::Database, errors::Result, parsers::load_database, utils::matrix::MappedVector,
-};
+use odyssey::{comput::lca::Database, errors::Result, parsers::load_database};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Args)]

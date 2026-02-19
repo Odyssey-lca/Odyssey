@@ -1,4 +1,5 @@
 use git2::Repository;
+use mapped_sparse_matrix::{MappedMatrix, MappedVector};
 use serde::{Deserialize, Serialize};
 
 use std::fs::{self, File};
@@ -12,7 +13,6 @@ use crate::parsers::ecospold2::build::{build_matrices, build_search_candidates};
 use crate::parsers::ecospold2::impacts::get_impact_matrices;
 use crate::parsers::ecospold2::parse::parse_ecospold2;
 use crate::utils::constants::DATABASES_PATH;
-use crate::utils::matrix::{MappedMatrix, MappedVector};
 use crate::utils::search::InventoryItem;
 
 mod build;

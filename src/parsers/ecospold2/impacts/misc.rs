@@ -1,8 +1,8 @@
 use crate::comput::impacts::ImpactCategory;
 use crate::errors::Result;
 use crate::utils::constants::DATABASES_PATH;
-use crate::utils::matrix::{MappedMatrix, MappedMatrixBuilder, MappedVector};
 use csv::Reader;
+use mapped_sparse_matrix::{MappedMatrix, MappedMatrixBuilder, MappedVector};
 use std::fs::File;
 
 pub fn get_empty_matrix(

@@ -1,12 +1,13 @@
 use std::collections::HashMap;
 
+use mapped_sparse_matrix::MappedMatrix;
+
 use crate::{
     comput::impacts::ImpactCategory,
     errors::Result,
     parsers::ecospold2::impacts::{
         cml::get_cml_matrix, ef31::get_ef31_matrix, traci::get_traci_matrix,
     },
-    utils::matrix::MappedMatrix,
 };
 
 pub mod cml;

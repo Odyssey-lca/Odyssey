@@ -1,12 +1,11 @@
 use std::collections::HashMap;
 
+use mapped_sparse_matrix::{MappedMatrix, MappedMatrixBuilder};
+
 use crate::{
     errors::{OdysseyErrors, Result},
     parsers::ecospold2::parse::{ids_from_str, EcoSpold},
-    utils::{
-        matrix::{MappedMatrix, MappedMatrixBuilder},
-        search::InventoryItem,
-    },
+    utils::search::InventoryItem,
 };
 
 pub fn build_matrices(

@@ -1,3 +1,4 @@
+use mapped_sparse_matrix::MappedVector;
 use serde::{Deserialize, Serialize};
 use std::hash::Hash;
 
@@ -7,10 +8,7 @@ pub mod traci;
 
 pub use ef31::EF31;
 
-use crate::{
-    comput::impacts::{cml::CML, traci::TRACI},
-    utils::matrix::MappedVector,
-};
+use crate::comput::impacts::{cml::CML, traci::TRACI};
 
 #[derive(PartialEq, std::cmp::Eq, Clone, Serialize, Deserialize, Debug, Hash)]
 pub enum ImpactCategory {

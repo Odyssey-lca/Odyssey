@@ -1,8 +1,9 @@
+use mapped_sparse_matrix::{MappedMatrix, MappedMatrixBuilder};
+
 use crate::{
     comput::impacts::{ImpactCategory, EF31},
     errors::Result,
     parsers::ecospold2::impacts::misc::{get_ecoinvent_mapping_file, get_empty_matrix},
-    utils::matrix::{MappedMatrix, MappedMatrixBuilder},
 };
 
 #[rustfmt::skip]

@@ -1,8 +1,6 @@
-use crate::{
-    comput::impacts::ImpactCategory,
-    errors::Result,
-    utils::{matrix::MappedVector, search::InventoryItem},
-};
+use mapped_sparse_matrix::MappedVector;
+
+use crate::{comput::impacts::ImpactCategory, errors::Result, utils::search::InventoryItem};
 
 pub trait Database {
     /// Name of the database

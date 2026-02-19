@@ -2,8 +2,8 @@ use crate::{
     comput::impacts::{traci::TRACI, ImpactCategory},
     errors::Result,
     parsers::ecospold2::impacts::misc::{get_ecoinvent_mapping_file, get_empty_matrix},
-    utils::matrix::{MappedMatrix, MappedMatrixBuilder},
 };
+use mapped_sparse_matrix::{MappedMatrix, MappedMatrixBuilder};
 
 #[rustfmt::skip]
 #[derive(Debug, serde::Deserialize)]
