@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use mapped_sparse_matrix::{MappedMatrix, MappedMatrixBuilder};
+use units_conversion::{dimension::DIMENSIONLESS, parser::parse_unit, unit::Unit};
 
 use crate::{
     errors::{OdysseyErrors, Result},
@@ -99,7 +100,9 @@ pub fn build_search_candidates(
             name,
             alt_name: Some(product.name.clone()),
             location,
-            unit: product.unit.clone(),
+            orignal_unit: product.unit.clone(),
+            unit: parse_unit(&product.unit.clone())
+                .unwrap_or(Unit { dimension: DIMENSIONLESS, scale_to_si: 0. }),
         };
         res.insert(id, item);
     }

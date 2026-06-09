@@ -5,6 +5,8 @@ use tantivy::query::{BooleanQuery, Occur, QueryParser, TermQuery};
 use tantivy::schema::document::CompactDocValue;
 use tantivy::{doc, DocAddress, Index, IndexReader, IndexWriter, ReloadPolicy};
 use tantivy::{schema::*, TantivyError};
+use units_conversion::parser::parse_unit;
+use units_conversion::unit::Unit;
 
 use crate::comput::lca::Database;
 use crate::utils::constants::SEARCH_PATH;
@@ -16,7 +18,8 @@ pub struct InventoryItem {
     pub name: String,
     pub alt_name: Option<String>,
     pub location: Option<String>,
-    pub unit: String,
+    pub unit: Unit,
+    pub orignal_unit: String,
 }
 
 pub struct Search {
@@ -31,6 +34,7 @@ pub struct Search {
     pub database_field: Field,
     pub location_field: Field,
     pub unit_field: Field,
+    pub original_unit_field: Field,
 }
 
 impl Search {
@@ -43,6 +47,7 @@ impl Search {
         let database_field = schema_builder.add_text_field("database", STRING | STORED);
         let location_field = schema_builder.add_text_field("location", STRING | STORED);
         let unit_field = schema_builder.add_text_field("unit", STRING | STORED);
+        let original_unit_field = schema_builder.add_text_field("original_unit", STRING | STORED);
         let schema = schema_builder.build();
 
         let index =
@@ -68,6 +73,7 @@ impl Search {
             location_field,
             database_field,
             unit_field,
+            original_unit_field,
         })
     }
 
@@ -91,7 +97,8 @@ impl Search {
             if let Some(loc) = item.location.clone() {
                 doc.add_text(self.location_field, loc);
             }
-            doc.add_text(self.unit_field, item.unit.clone());
+            doc.add_text(self.original_unit_field, item.orignal_unit.clone());
+            doc.add_text(self.unit_field, format!("{}", item.unit.clone()));
             index_writer.add_document(doc)?;
         }
         index_writer.commit()?;
@@ -136,9 +143,15 @@ impl Search {
             queries.push((Occur::Must, Box::new(localisation_filter)));
         }
         if let Some(unit) = unit {
-            let unit_term = Term::from_field_text(self.unit_field, unit);
-            let unit_filter = TermQuery::new(unit_term, IndexRecordOption::Basic);
-            queries.push((Occur::Must, Box::new(unit_filter)));
+            if let Some(unit) = parse_unit(unit) {
+                let unit_term = Term::from_field_text(self.unit_field, &format!("{}", unit));
+                let unit_filter = TermQuery::new(unit_term, IndexRecordOption::Basic);
+                queries.push((Occur::Must, Box::new(unit_filter)));
+            } else {
+                let unit_term = Term::from_field_text(self.original_unit_field, unit);
+                let unit_filter = TermQuery::new(unit_term, IndexRecordOption::Basic);
+                queries.push((Occur::Must, Box::new(unit_filter)));
+            }
         }
         let searcher = self.reader.searcher();
         searcher.search(&BooleanQuery::from(queries), &TopDocs::with_limit(10))
@@ -192,7 +205,7 @@ impl Search {
                         let database = value_to_string(doc.get_first(self.database_field));
                         let name = value_to_string(doc.get_first(self.name_field));
                         let location = doc.get_first(self.location_field).map(|v| Some(value_to_string(Some(v))));
-                        let unit = value_to_string(doc.get_first(self.unit_field));
+                        let unit = value_to_string(doc.get_first(self.original_unit_field));
                         let json = if let Some(location) = location {
                             json!({"database": database, "name": name, "location": location, "unit": unit})
                         } else { json!({"database": database, "name": name, "unit": unit})};
@@ -207,7 +220,6 @@ impl Search {
             .collect();
         Ok(res)
     }
-
 
     pub fn search(
         &self,
@@ -234,10 +246,10 @@ impl Search {
                             Some(n) => format!(" {}", n.as_str().unwrap()),
                             None => "".to_string(),
                         };
-                        let unit = value_to_string(doc.get_first(self.unit_field));
+                        let unit = value_to_string(doc.get_first(self.original_unit_field));
                         Some((
                             score,
-                            format!("[{}] {}{}{} {}", database, name, alt_name, location, unit),
+                            format!("[{}] {}{}{} {:?}", database, name, alt_name, location, unit),
                         ))
                     }
                     Err(_) => None,
