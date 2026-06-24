@@ -15,8 +15,6 @@ pub enum OdysseyErrors {
     #[error("{0:?}")]
     XmlDeError(#[from] quick_xml::de::DeError),
     #[error("{0:?}")]
-    YamlError(#[from] serde_yaml::Error),
-    #[error("{0:?}")]
     JsonError(#[from] serde_json::Error),
     #[error("{0:?}")]
     BinCacheError(#[from] bincode::Error),

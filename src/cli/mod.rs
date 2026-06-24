@@ -1,6 +1,7 @@
 mod database;
 mod run;
 mod search;
+mod errors;
 
 use clap::{Parser, Subcommand};
 use database::DatabaseCommandes;

@@ -1,14 +1,15 @@
 use std::path::PathBuf;
-use std::{collections::HashMap, fs::File, io::BufReader, path::Path};
+use std::{collections::HashMap, fs::File, io::{BufReader, Read}, path::Path};
+use marked_yaml::parse_yaml;
 
 use clap::Args;
 use mapped_sparse_matrix::MappedVector;
 use odyssey::comput::impacts::ImpactCategory;
 use odyssey::utils::search::Search;
-use odyssey::{comput::lca::Database, errors::Result, parsers::load_database};
-use serde::{Deserialize, Serialize};
+use odyssey::{comput::lca::Database, parsers::load_database};
 use units_conversion::parser::parse_unit;
 use units_conversion::unit::Unit;
+use crate::cli::errors::{CliError, Result};
 
 #[derive(Debug, Args)]
 #[command(args_conflicts_with_subcommands = true)]
@@ -19,32 +20,125 @@ pub struct RunCommand {
     pub method: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct DatabaseInfos {
     name: String,
     version: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(untagged)]
+#[derive(Debug)]
 pub enum ExchangeLink {
     File { file: String },
     Database { database: DatabaseInfos },
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct Exchange {
-    #[serde(flatten)]
     link: ExchangeLink,
     location: Option<String>,
     unit: Option<String>,
     name: Option<String>,
     amount: f64,
+    source_path: PathBuf,
+    line: (usize, usize),
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct Activity {
     exchanges: Vec<Exchange>,
+}
+
+pub fn parse_activity(path: &Path) -> Result<Activity> {
+
+    let file = File::open(path)?; 
+    let mut reader = BufReader::new(file);
+    let mut file_yaml = String::new();
+    reader.read_to_string(&mut file_yaml)?;
+
+    let node = parse_yaml(0, &file_yaml).unwrap();
+
+    let top_mapping = node.as_mapping().unwrap();
+ 
+    let exchanges_node = top_mapping.get("exchanges").unwrap();
+
+    let exchanges_seq = exchanges_node.as_sequence().unwrap();
+
+    let mut activity: Vec<Exchange> = Vec::new();
+
+    for exchange_node in exchanges_seq.iter() {
+        
+        let start_line = exchange_node.span().start()
+            .map(|marker| marker.line())
+            .unwrap_or(0);
+        
+        let end_line = exchange_node.span().end()
+            .map(|marker| marker.line())
+            .unwrap_or(0);
+
+        let line = (start_line, end_line);
+        
+        let exchange_map = exchange_node.as_mapping().unwrap();
+
+        // Requiered fields
+        let name = Some(exchange_map.get("name")
+        .ok_or_else(|| CliError::GlobalCliError { path: path.to_path_buf(), line: line.0 })?
+        .as_scalar()
+        .unwrap()
+        .as_str()
+        .to_string());
+        
+        let link = if let Some(file_node) = exchange_map.get("file") {
+            ExchangeLink::File {
+                file: file_node
+                    .as_scalar()
+                    .unwrap()
+                    .as_str().
+                    to_string(),
+            }
+        } else if let Some(db_node) = exchange_map.get("database") {
+            let db_map = db_node.as_mapping().ok_or_else(|| CliError::GlobalCliError { path: path.to_path_buf(), line: line.0 })?;
+            let db_name = db_map.get("name")
+                .ok_or_else(|| CliError::GlobalCliError { path: path.to_path_buf(), line: line.0 })?
+                .as_scalar()
+                .unwrap()
+                .as_str()
+                .to_string();
+            let db_version = db_map.get("version")
+                .ok_or_else(|| CliError::GlobalCliError { path: path.to_path_buf(), line: line.0 })?
+                .as_scalar()
+                .unwrap()
+                .as_str()
+                .to_string();
+
+            ExchangeLink::Database { database: DatabaseInfos { name: db_name, version: db_version }}
+        } else {
+            return Err(CliError::GlobalCliError{ path: path.to_path_buf(), line: line.0 })
+        };
+
+        let amount = exchange_map.get("amount")
+            .ok_or_else(|| CliError::GlobalCliError { path: path.to_path_buf(), line: line.0 })?
+            .as_scalar()
+            .unwrap()
+            .as_str()
+            .parse::<f64>()
+            .unwrap();
+
+        // Optionnal fields
+        let location = exchange_map.get("location").map(|n| n.as_scalar().unwrap().as_str().to_string());
+        let unit = exchange_map.get("unit").map(|n| n.as_scalar().unwrap().as_str().to_string());
+
+        activity.push(Exchange {
+            link: link,
+            location: location,
+            unit: unit,
+            name: name,
+            amount: amount,
+            source_path: path.to_path_buf(),
+            line: line,
+        });
+    }
+
+    Ok(Activity { exchanges: activity })
 }
 
 fn import_from_database(
@@ -65,7 +159,7 @@ fn import_from_database(
         unit.as_deref(),
     )?;
     match &id[..] {
-        [] => panic!("No matching activity for {}", exchange_name),
+        [] => return Err(CliError::GlobalCliError { path: exchange.source_path.clone(), line: exchange.line.0 }),
         [a] => {
             let database = databases
                 .entry(database_name.clone())
@@ -92,7 +186,7 @@ fn import_from_database(
 
             local_rf.set(a.clone(), parent_amount * exchange_amount).unwrap();
         }
-        _ => panic!("Multiple matching activities for {}", exchange_name),
+        _ => return Err(CliError::GlobalCliError { path: exchange.source_path.clone(), line: exchange.line.0 }),
     }
     Ok(())
 }
@@ -104,9 +198,8 @@ fn import_from_file(
     search: &Search,
     parent_amount: f64,
 ) -> Result<()> {
-    let file = File::open(path)?;
-    let reader = BufReader::new(&file);
-    let activity: Activity = serde_yaml::from_reader(reader)?;
+
+    let activity: Activity = parse_activity(path)?;
 
     for e in activity.exchanges {
         import_flow(&e, databases, rfs, search, parent_amount)?;
@@ -135,9 +228,7 @@ fn import_flow(
 pub fn run_lca(path: &Path, method: String) -> Result<()> {
     let search = Search::new()?;
 
-    let file = File::open(path)?;
-    let reader = BufReader::new(&file);
-    let activity: Activity = serde_yaml::from_reader(reader)?;
+    let activity: Activity = parse_activity(path)?;
 
     let mut global_res = ImpactCategory::get_empty_vector(&method);
     print!("\"flow\"");
