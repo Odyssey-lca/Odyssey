@@ -148,9 +148,9 @@ pub fn run_lca(path: &Path, method: String) -> Result<()> {
     }
     println!();
 
+    let mut databases: HashMap<String, Box<dyn Database>> = HashMap::new();
     for e in activity.exchanges {
         let mut res = ImpactCategory::get_empty_vector(&method);
-        let mut databases: HashMap<String, Box<dyn Database>> = HashMap::new();
         let mut rfs: HashMap<String, MappedVector<String>> = HashMap::new();
         import_flow(&e, &mut databases, &mut rfs, &search, 1f64)?;
 
