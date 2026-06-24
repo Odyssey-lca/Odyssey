@@ -55,13 +55,42 @@ pub fn parse_activity(path: &Path) -> Result<Activity> {
     let mut file_yaml = String::new();
     reader.read_to_string(&mut file_yaml)?;
 
-    let node = parse_yaml(0, &file_yaml).unwrap();
+    let node = parse_yaml(0, &file_yaml).map_err(|err| {
+        
+        let error_line = match &err {
+            marked_yaml::LoadError::TopLevelMustBeMapping(m) => m.line(),
+            marked_yaml::LoadError::TopLevelMustBeSequence(m) => m.line(),
+            marked_yaml::LoadError::UnexpectedAnchor(m) => m.line(),
+            marked_yaml::LoadError::MappingKeyMustBeScalar(m) => m.line(),
+            marked_yaml::LoadError::UnexpectedTag(m) => m.line(),
+            marked_yaml::LoadError::ScanError(m, _) => m.line(),
+            marked_yaml::LoadError::DuplicateKey(_) => 0,
+        };
+        
+        CliError::YamlLoadError {
+            path: path.to_path_buf(),
+            line: (error_line, error_line),
+            details: err.to_string(),
+        }
+    })?;
 
-    let top_mapping = node.as_mapping().unwrap();
+    let top_mapping = node.as_mapping().ok_or_else(|| CliError::InvalidYamlFormat {
+        path: path.to_path_buf(),
+        line: (0,0),
+        details: "error: the root of the document must be a YAML mapping".to_string(),
+    })?;
  
-    let exchanges_node = top_mapping.get("exchanges").unwrap();
+    let exchanges_node = top_mapping.get("exchanges").ok_or_else(|| CliError::InvalidYamlFormat {
+        path: path.to_path_buf(),
+        line: (0,0),
+        details: "error: missing root key 'exchanges'".to_string(),
+    })?;
 
-    let exchanges_seq = exchanges_node.as_sequence().unwrap();
+    let exchanges_seq = exchanges_node.as_sequence().ok_or_else(|| CliError::InvalidYamlFormat {
+        path: path.to_path_buf(),
+        line: (0,0),
+        details: "The 'exchanges' key must contain a sequence (list) of items".to_string(),
+    })?;
 
     let mut activity: Vec<Exchange> = Vec::new();
 
@@ -77,11 +106,15 @@ pub fn parse_activity(path: &Path) -> Result<Activity> {
 
         let line = (start_line, end_line);
         
-        let exchange_map = exchange_node.as_mapping().unwrap();
+        let exchange_map = exchange_node.as_mapping().ok_or_else(|| CliError::InvalidYamlFormat {
+            path: path.to_path_buf(),
+            line,
+            details: "Each exchange item must be a mapping block".to_string(),
+        })?;
 
         // Requiered fields
         let name = Some(exchange_map.get("name")
-        .ok_or_else(|| CliError::GlobalCliError { path: path.to_path_buf(), line: line.0 })?
+        .ok_or_else(|| CliError::MissingExchangeName{ path: path.to_path_buf(), line: line })?
         .as_scalar()
         .unwrap()
         .as_str()
@@ -96,15 +129,17 @@ pub fn parse_activity(path: &Path) -> Result<Activity> {
                     to_string(),
             }
         } else if let Some(db_node) = exchange_map.get("database") {
-            let db_map = db_node.as_mapping().ok_or_else(|| CliError::GlobalCliError { path: path.to_path_buf(), line: line.0 })?;
+            let db_map = db_node.as_mapping().ok_or_else(|| CliError::InvalidYamlFormat {
+                path: path.to_path_buf(), line, details: "'database' must be a mapping block".to_string()
+            })?;
             let db_name = db_map.get("name")
-                .ok_or_else(|| CliError::GlobalCliError { path: path.to_path_buf(), line: line.0 })?
+                .ok_or_else(|| CliError::MissingDatabaseName { path: path.to_path_buf(), line: line })?
                 .as_scalar()
                 .unwrap()
                 .as_str()
                 .to_string();
             let db_version = db_map.get("version")
-                .ok_or_else(|| CliError::GlobalCliError { path: path.to_path_buf(), line: line.0 })?
+                .ok_or_else(|| CliError::MissingDatabaseVersion { path: path.to_path_buf(), line: line })?
                 .as_scalar()
                 .unwrap()
                 .as_str()
@@ -112,16 +147,16 @@ pub fn parse_activity(path: &Path) -> Result<Activity> {
 
             ExchangeLink::Database { database: DatabaseInfos { name: db_name, version: db_version }}
         } else {
-            return Err(CliError::GlobalCliError{ path: path.to_path_buf(), line: line.0 })
+            return Err(CliError::MissingExchangeLink{ path: path.to_path_buf(), line: line })
         };
 
         let amount = exchange_map.get("amount")
-            .ok_or_else(|| CliError::GlobalCliError { path: path.to_path_buf(), line: line.0 })?
+            .ok_or_else(|| CliError::MissingExchangeAmount{ path: path.to_path_buf(), line: line })?
             .as_scalar()
             .unwrap()
             .as_str()
             .parse::<f64>()
-            .unwrap();
+            .map_err(|_| CliError::AmountError { path: path.to_path_buf(), line: line })?;
 
         // Optionnal fields
         let location = exchange_map.get("location").map(|n| n.as_scalar().unwrap().as_str().to_string());
@@ -139,6 +174,42 @@ pub fn parse_activity(path: &Path) -> Result<Activity> {
     }
 
     Ok(Activity { exchanges: activity })
+}
+
+fn diagnose_missing_exchange_error(
+    database_infos: &DatabaseInfos,
+    search: &Search,
+    exchange: &Exchange,
+) -> Result<()> {
+
+    let database_name = format!("{}_{}", database_infos.name, database_infos.version);
+    let exchange_name = exchange.name.clone().unwrap_or_default();
+
+    let name_found = !search.search_for_ids(&exchange_name, None, None, None)?.is_empty();
+    if !name_found {
+        return Err(CliError::NameError { path: exchange.source_path.clone(), line: exchange.line });
+    }
+
+    let database_found = !search.search_for_ids(&exchange_name, Some(&database_name), None, None)?.is_empty();
+    if !database_found {
+        return Err(CliError::DatabaseError { path: exchange.source_path.clone(), line: exchange.line });
+    }
+
+    if exchange.location.is_some() {
+        let location_found = !search.search_for_ids(&exchange_name, Some(&database_name), exchange.location.as_deref(), None)?.is_empty();
+        if !location_found {
+            return Err(CliError::LocationError { path: exchange.source_path.clone(), line: exchange.line });
+        }
+    }
+
+    if exchange.unit.is_some() {
+        let unit_found = !search.search_for_ids(&exchange_name, Some(&database_name), None, exchange.unit.as_deref())?.is_empty();
+        if !unit_found {
+            return Err(CliError::UnitError { path: exchange.source_path.clone(), line: exchange.line });
+        }
+    }
+
+    Err(CliError::MissingExchange { path: exchange.source_path.clone(), line: exchange.line })
 }
 
 fn import_from_database(
@@ -159,7 +230,7 @@ fn import_from_database(
         unit.as_deref(),
     )?;
     match &id[..] {
-        [] => return Err(CliError::GlobalCliError { path: exchange.source_path.clone(), line: exchange.line.0 }),
+        [] => return diagnose_missing_exchange_error(database_infos, search, exchange),
         [a] => {
             let database = databases
                 .entry(database_name.clone())
@@ -186,7 +257,7 @@ fn import_from_database(
 
             local_rf.set(a.clone(), parent_amount * exchange_amount).unwrap();
         }
-        _ => return Err(CliError::GlobalCliError { path: exchange.source_path.clone(), line: exchange.line.0 }),
+        _ => return Err(CliError::MultipleExchange{ path: exchange.source_path.clone(), line: exchange.line }),
     }
     Ok(())
 }
@@ -216,7 +287,14 @@ fn import_flow(
 ) -> Result<()> {
     match &e.link {
         ExchangeLink::File { file } => {
-            import_from_file(Path::new(file), databases, rfs, search, parent_amount * e.amount)?
+            import_from_file(Path::new(file), databases, rfs, search, parent_amount * e.amount)
+                .map_err(|err| match err {
+                    CliError::IoError(_) => CliError::FileError {
+                        path: e.source_path.clone(),
+                        line: e.line
+                    },
+                    _ => err,
+                })?
         }
         ExchangeLink::Database { database } => {
             import_from_database(database, databases, rfs, search, e, parent_amount)?
