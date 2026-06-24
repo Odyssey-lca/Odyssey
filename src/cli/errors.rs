@@ -56,7 +56,7 @@ impl CliError {
             Self::DatabaseError { path, line } => (path, line, "error: exchange flow not found", "the search query returned zero results in the current database (the 'database' is likely incorrect) | try searching for the exchange using: odyssey search \"your_exchange_name\" -d \"database.name_database.version\"", "database"),
             Self::LocationError { path, line } => (path, line, "error: exchange flow not found", "the search query returned zero results in the current database (the 'location' filter is likely incorrect) | try searching for the exchange using: odyssey search \"your_exchange_name\" -l \"your_location\"", "location"),
             Self::UnitError { path, line } => (path, line, "error: exchange flow not found", "the search query returned zero results in the current database (the 'unit' filter is likely incorrect) | try searching for the exchange using: odyssey search \"your_exchange_name\" -l \"your_unit\"", "unit"),
-            Self::MultipleExchange { path, line } => (path, line, "error: multiple exchanges found", "the search query returned multiple matching entries in the database | restrict the search by adding filters | try searching for the exchange using: odyssey search \"your_exchange_name\"", ""),
+            Self::MultipleExchange { path, line } => (path, line, "error: multiple exchanges found", "the search query returned multiple matching entries in the database | restrict the search by adding filters (e.g. location, unit) | try searching for the exchange using: odyssey search \"your_exchange_name\"", ""),
             _ => unreachable!(),
         };
 
@@ -73,7 +73,9 @@ impl CliError {
         let margin = " ".repeat(line.1.to_string().len());
 
         for (index, content) in lines.iter().enumerate() {
-            if content.is_empty() { continue; }
+
+            let trimmed_content = content.trim_start();
+            if trimmed_content.is_empty() || trimmed_content.starts_with('#') { continue; }
             let curr_line = line.0 + index;
 
             match self {
@@ -81,23 +83,23 @@ impl CliError {
                     let suggestion_with_space = format!("{} :", suggestion);
                     let suggestion_without_space = format!("{}:", suggestion);
                     if content.contains(&suggestion_with_space) || content.contains(&suggestion_without_space) {
-                        eprintln!("{curr_line} | {content}      {}", "<-- error occurred here".yellow());
+                        eprintln!("{curr_line} |{content}      {}", "<-- error occurred here".yellow());
                     } else {
-                        eprintln!("{curr_line} | {content}");
+                        eprintln!("{curr_line} |{content}");
                     }
                 }
                 Self::MissingDatabaseName { .. } | Self::MissingDatabaseVersion { .. } => {
-                    eprintln!("{curr_line} | {content}");
+                    eprintln!("{curr_line} |{content}");
                     if content.contains("database:") {
                         eprintln!("{}{margin}|       {}", "+".green(), suggestion.green());
                     }
                 }
-                _ => eprintln!("{curr_line} | {content}"),
+                _ => eprintln!("{curr_line} |{content}"),
             }
         }
 
         if matches!(self, Self::MissingExchangeName { .. } | Self::MissingExchangeLink { .. } | Self::MissingExchangeAmount { .. } | Self::MissingExchange { .. } | Self::MultipleExchange { .. }) && !suggestion.is_empty() {
-            eprintln!("{}{margin}|     {}", "+".green(), suggestion.green());
+            eprintln!("{}{margin}|    {}", "+".green(), suggestion.green());
         }
 
         eprintln!("\n{} {}", "= help:".blue().bold(), help_msg);
