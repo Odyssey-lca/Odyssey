@@ -12,8 +12,8 @@ pub enum CliError {
     #[error(transparent)] IoError(#[from] std::io::Error),
     #[error(transparent)] TantivyError(#[from] tantivy::TantivyError),
 
-    #[error("load error in during yaml parsing: {details}")] YamlLoadError { path: PathBuf, line: (usize, usize), details: String },
-    #[error("invalid yaml format: {details}")] InvalidYamlFormat { path: PathBuf, line: (usize, usize), details: String },
+    #[error("load error in during yaml parsing in {path} at line {line:?}: {details}")] YamlLoadError { path: PathBuf, line: (usize, usize), details: String },
+    #[error("invalid yaml format in {path} at line {line:?}: {details}")] InvalidYamlFormat { path: PathBuf, line: (usize, usize), details: String },
 
     #[error("missing exchange name in {path} at line {line:?}")] MissingExchangeName { path: PathBuf, line: (usize, usize) },
     #[error("missing exchange link in {path} at line {line:?}")] MissingExchangeLink { path: PathBuf, line: (usize, usize) },
