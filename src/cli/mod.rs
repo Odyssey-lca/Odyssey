@@ -1,6 +1,7 @@
 mod database;
 mod run;
 mod search;
+mod errors;
 
 use clap::{Parser, Subcommand};
 use database::DatabaseCommandes;
@@ -23,20 +24,19 @@ pub struct Cli {
 }
 
 impl Cli {
-    pub fn exec(self) {
+    pub fn exec(self) -> crate::cli::errors::Result<()> {
         match self.command {
             Commands::Database(args) => {
                 args.parse();
             }
-            Commands::Search(args) => match cli_search(args) {
-                Ok(()) => {}
-                Err(e) => eprintln!("Error while searching: {}", e),
+            Commands::Search(args) => {
+                cli_search(args)?;
             },
-            Commands::Run(args) => match run_lca(&args.path, args.method) {
-                Ok(()) => {}
-                Err(e) => eprintln!("Error while runing: {}", e),
+            Commands::Run(args) => {
+                run_lca(&args.path, args.method)?;
             },
         }
+        Ok(())
     }
 }
 
