@@ -1,14 +1,17 @@
-use std::path::Path;
+pub mod errors;
 
+use errors::Result;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
+use std::path::Path;
 use tantivy::collector::{Count, TopDocs};
 use tantivy::query::{BooleanQuery, Occur, QueryParser, TermQuery};
 use tantivy::schema::document::CompactDocValue;
-use tantivy::{doc, DocAddress, Index, IndexReader, IndexWriter, ReloadPolicy};
-use tantivy::{schema::*, TantivyError};
+use tantivy::{DocAddress, Index, IndexReader, IndexWriter, ReloadPolicy, doc};
+use tantivy::{TantivyError, schema::*};
 use units::parser::parse_unit;
 use units::unit::Unit;
+
+use crate::errors::SearchErrors::WrongDatabaseName;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct InventoryItem {
@@ -19,6 +22,17 @@ pub struct InventoryItem {
     pub location: Option<String>,
     pub unit: Unit,
     pub orignal_unit: String,
+}
+
+pub struct SearchResult {
+    pub score: f32,
+    pub id: String,
+    pub database_name: String,
+    pub database_version: String,
+    pub name: String,
+    pub alt_name: Option<String>,
+    pub location: Option<String>,
+    pub unit: String,
 }
 
 pub struct Search {
@@ -49,11 +63,10 @@ impl Search {
         let original_unit_field = schema_builder.add_text_field("original_unit", STRING | STORED);
         let schema = schema_builder.build();
 
-        let index =
-            Index::create_in_dir(path, schema.clone()).or_else(|error| match error {
-                TantivyError::IndexAlreadyExists => Ok(Index::open_in_dir(path)?),
-                _ => Err(error),
-            })?;
+        let index = Index::create_in_dir(path, schema.clone()).or_else(|error| match error {
+            TantivyError::IndexAlreadyExists => Ok(Index::open_in_dir(path)?),
+            _ => Err(error),
+        })?;
 
         let reader = Index::open_in_dir(path)?
             .reader_builder()
@@ -119,6 +132,7 @@ impl Search {
         localisation: Option<&str>,
         unit: Option<&str>,
         exact_name: bool,
+        limit: Option<usize>,
     ) -> tantivy::Result<Vec<(f32, DocAddress)>> {
         let mut queries = vec![];
         let query_parser =
@@ -143,7 +157,8 @@ impl Search {
         }
         if let Some(unit) = unit {
             if let Some(unit) = parse_unit(unit) {
-                let unit_term = Term::from_field_text(self.unit_field, &unit.format_without_scale());
+                let unit_term =
+                    Term::from_field_text(self.unit_field, &unit.format_without_scale());
                 let unit_filter = TermQuery::new(unit_term, IndexRecordOption::Basic);
                 queries.push((Occur::Must, Box::new(unit_filter)));
             } else {
@@ -153,28 +168,7 @@ impl Search {
             }
         }
         let searcher = self.reader.searcher();
-        searcher.search(&BooleanQuery::from(queries), &TopDocs::with_limit(10))
-    }
-
-    pub fn search_for_ids(
-        &self,
-        query: &str,
-        database: Option<&str>,
-        localisation: Option<&str>,
-        unit: Option<&str>,
-    ) -> tantivy::Result<Vec<String>> {
-        let searcher = self.reader.searcher();
-        let search_results = self._get_search_results(query, database, localisation, unit, true);
-        let res: Vec<String> = search_results?
-            .into_iter()
-            .filter_map(
-                |(_, address)| match searcher.doc::<TantivyDocument>(address) {
-                    Ok(doc) => Some(value_to_string(doc.get_first(self.id_field))),
-                    Err(_) => None,
-                },
-            )
-            .collect();
-        Ok(res)
+        searcher.search(&BooleanQuery::from(queries), &TopDocs::with_limit(limit.unwrap_or(10)))
     }
 
     /// Delete all entries of the given [database]
@@ -186,79 +180,54 @@ impl Search {
         Ok(())
     }
 
-    pub fn search_for_json(
-        &self,
-        query: &str,
-        database: Option<&str>,
-        localisation: Option<&str>,
-        unit: Option<&str>,
-    ) -> tantivy::Result<Vec<(f32, String)>> {
-        let searcher = self.reader.searcher();
-        let search_results = self._get_search_results(query, database, localisation, unit, false);
-        let res: Vec<(f32, String)> = search_results?
-            .into_iter()
-            .filter_map(
-                |(score, address)| match searcher.doc::<TantivyDocument>(address) {
-                    Ok(doc) => {
-                        // CompactDoc is a private type, so doc can't be passed to a sub function
-                        let database = value_to_string(doc.get_first(self.database_field));
-                        let name = value_to_string(doc.get_first(self.name_field));
-                        let location = doc.get_first(self.location_field).map(|v| Some(value_to_string(Some(v))));
-                        let unit = value_to_string(doc.get_first(self.original_unit_field));
-                        let json = if let Some(location) = location {
-                            json!({"database": database, "name": name, "location": location, "unit": unit})
-                        } else { json!({"database": database, "name": name, "unit": unit})};
-                        Some((
-                            score,
-                            format!("{}", json),
-                        ))
-                    }
-                    Err(_) => None,
-                },
-            )
-            .collect();
-        Ok(res)
-    }
-
     pub fn search(
         &self,
         query: &str,
         database: Option<&str>,
         localisation: Option<&str>,
         unit: Option<&str>,
-    ) -> tantivy::Result<Vec<(f32, String)>> {
+        limit: Option<usize>
+    ) -> Result<Vec<SearchResult>> {
         let searcher = self.reader.searcher();
-        let search_results = self._get_search_results(query, database, localisation, unit, false);
-        let res: Vec<(f32, String)> = search_results?
+        let search_results =
+            self._get_search_results(query, database, localisation, unit, false, limit)?;
+        search_results
             .into_iter()
-            .filter_map(
-                |(score, address)| match searcher.doc::<TantivyDocument>(address) {
-                    Ok(doc) => {
-                        // CompactDoc is a private type, so doc can't be passed to a sub function
-                        let database = value_to_string(doc.get_first(self.database_field));
-                        let name = value_to_string(doc.get_first(self.name_field));
-                        let alt_name = match doc.get_first(self.alt_name_field) {
-                            Some(n) => format!(" ({})", n.as_str().unwrap()),
-                            None => "".to_string(),
-                        };
-                        let location = match doc.get_first(self.location_field) {
-                            Some(n) => format!(" {}", n.as_str().unwrap()),
-                            None => "".to_string(),
-                        };
-                        let unit = value_to_string(doc.get_first(self.original_unit_field));
-                        Some((
-                            score,
-                            format!("[{}] {}{}{} {}", database, name, alt_name, location, unit),
-                        ))
-                    }
-                    Err(_) => None,
-                },
-            )
-            .collect();
-        Ok(res)
+            .map(|(score, address)| {
+                let doc = searcher.doc::<TantivyDocument>(address)?;
+                // CompactDoc is a private type, so doc can't be passed to a sub function
+                let id = value_to_string(doc.get_first(self.id_field));
+                let (database_name, database_version) = 
+                  extract_database_infos(value_to_string(doc.get_first(self.database_field)))?;
+                let name = value_to_string(doc.get_first(self.name_field));
+                let alt_name = doc.get_first(self.alt_name_field).map(|an| an.as_str().unwrap().to_string());
+                let location = doc.get_first(self.location_field).map(|l| l.as_str().unwrap().to_string());
+                let unit = value_to_string(doc.get_first(self.original_unit_field));
+                Ok(SearchResult {
+                    score,
+                    id,
+                    database_name,
+                    database_version,
+                    name, alt_name,
+                    location,
+                    unit,
+                })
+            })
+            .collect()
     }
 }
 
 fn value_to_string(doc: Option<CompactDocValue>) -> String {
     doc.unwrap().as_str().unwrap().to_string()
+}
+
+fn extract_database_infos(infos: String) -> Result<(String, String)> {
+    let mut split_infos = infos.split("_");
+    let name = split_infos
+        .next()
+        .ok_or(WrongDatabaseName(infos.to_string()))?;
+    let version = split_infos
+        .next()
+        .ok_or(WrongDatabaseName(infos.to_string()))?;
+    Ok((name.to_string(), version.to_string()))
 }

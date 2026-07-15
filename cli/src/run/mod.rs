@@ -69,13 +69,14 @@ fn import_from_database(
     let database_name = format!("{}_{}", database_infos.name, database_infos.version);
     let exchange_name = exchange.name.clone().unwrap();
     let unit = exchange.unit.clone();
-    let id = search.search_for_ids(
+    let search_results = search.search(
         &exchange_name,
         Some(&database_name),
         exchange.location.as_deref(),
         unit.as_deref(),
+        None,
     )?;
-    match &id[..] {
+    match &search_results[..] {
         [] => return diagnose_missing_exchange_error(database_infos, search, exchange),
         [a] => {
             let database = databases
@@ -86,7 +87,7 @@ fn import_from_database(
                     &DATABASES_PATH,
                 )?);
 
-            let candidate = database.get_candidate(a).unwrap();
+            let candidate = database.get_candidate(&a.id).unwrap();
 
             let local_rf = rfs
                 .entry(database_name)
@@ -104,7 +105,7 @@ fn import_from_database(
                 .unwrap_or(exchange.amount);
 
             local_rf
-                .set(a.clone(), parent_amount * exchange_amount)
+                .set(a.id.clone(), parent_amount * exchange_amount)
                 .unwrap();
         }
         _ => {

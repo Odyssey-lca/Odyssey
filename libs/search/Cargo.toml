@@ -7,4 +7,5 @@ edition = "2024"
 serde = { workspace = true }
 serde_json = { workspace = true }
 tantivy = { workspace = true }
+thiserror = { workspace = true }
 units = { path = "../units"}

@@ -18,6 +18,8 @@ pub enum RunError {
     IoError(#[from] std::io::Error),
     #[error(transparent)]
     TantivyError(#[from] tantivy::TantivyError),
+    #[error(transparent)]
+    SearchError(#[from] search::errors::SearchErrors),
 
     #[error("load error in during yaml parsing in {path} at line {line:?}: {details}")]
     YamlLoadError { path: PathBuf, line: (usize, usize), details: String },
@@ -164,7 +166,7 @@ pub fn diagnose_missing_exchange_error(
     let exchange_name = exchange.name.clone().unwrap_or_default();
 
     let name_found = !search
-        .search_for_ids(&exchange_name, None, None, None)?
+        .search(&exchange_name, None, None, None, None)?
         .is_empty();
     if !name_found {
         return Err(RunError::NameError {
@@ -174,7 +176,7 @@ pub fn diagnose_missing_exchange_error(
     }
 
     let database_found = !search
-        .search_for_ids(&exchange_name, Some(&database_name), None, None)?
+        .search(&exchange_name, Some(&database_name), None, None, None)?
         .is_empty();
     if !database_found {
         return Err(RunError::DatabaseError {
@@ -185,10 +187,11 @@ pub fn diagnose_missing_exchange_error(
 
     if exchange.location.is_some() {
         let location_found = !search
-            .search_for_ids(
+            .search(
                 &exchange_name,
                 Some(&database_name),
                 exchange.location.as_deref(),
+                None,
                 None,
             )?
             .is_empty();
@@ -202,11 +205,12 @@ pub fn diagnose_missing_exchange_error(
 
     if exchange.unit.is_some() {
         let unit_found = !search
-            .search_for_ids(
+            .search(
                 &exchange_name,
                 Some(&database_name),
                 None,
                 exchange.unit.as_deref(),
+                None,
             )?
             .is_empty();
         if !unit_found {
