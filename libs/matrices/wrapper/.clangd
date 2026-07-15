@@ -1,0 +1,4 @@
+CompileFlags:
+  Add: 
+    - "-I/suitesparse/CXSparse/Include"
+    - "-I."

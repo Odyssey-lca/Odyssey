@@ -1,0 +1,13 @@
+[package]
+name = "comput"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+search = { path = "../search"}
+matrices = { path = "../matrices"}
+errors = { path = "../errors"}
+strum = { workspace = true }
+strum_macros = { workspace = true }
+serde = { workspace = true }
+bimap = { workspace = true }
