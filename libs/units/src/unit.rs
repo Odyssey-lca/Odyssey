@@ -50,6 +50,10 @@ impl Unit {
         let substance = self.substance.clone();
         Unit { dimension, scale_to_si, substance }
     }
+
+    pub fn format_without_scale(&self) -> String {
+      format!("Dimension : {}, Substance : {:?}", self.dimension, self.substance)
+    }
 }
 
 impl std::ops::Mul for Unit {
@@ -96,13 +100,8 @@ impl fmt::Display for Unit {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "Dimension : {};{};{};{};{};{}, Scale_to_si : {}, substance : {:?}",
-            self.dimension.length,
-            self.dimension.mass,
-            self.dimension.time,
-            self.dimension.current,
-            self.dimension.temperature,
-            self.dimension.amount,
+            "Dimension : {}, Scale_to_si : {}, Substance : {:?}",
+            self.dimension,
             self.scale_to_si,
             self.substance,
         )

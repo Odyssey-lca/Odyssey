@@ -1,3 +1,5 @@
+use core::fmt;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
@@ -72,6 +74,21 @@ impl Dimension {
             temperature: self.temperature * k,
             amount: self.amount * k,
         }
+    }
+}
+
+impl fmt::Display for Dimension {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{};{};{};{};{};{}",
+            self.length,
+            self.mass,
+            self.time,
+            self.current,
+            self.temperature,
+            self.amount,
+        )
     }
 }
 

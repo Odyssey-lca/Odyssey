@@ -97,7 +97,7 @@ impl Search {
                 doc.add_text(self.location_field, loc);
             }
             doc.add_text(self.original_unit_field, item.orignal_unit.clone());
-            doc.add_text(self.unit_field, format!("{}", item.unit.clone()));
+            doc.add_text(self.unit_field, item.unit.format_without_scale());
             index_writer.add_document(doc)?;
         }
         index_writer.commit()?;
@@ -143,7 +143,7 @@ impl Search {
         }
         if let Some(unit) = unit {
             if let Some(unit) = parse_unit(unit) {
-                let unit_term = Term::from_field_text(self.unit_field, &format!("{}", unit));
+                let unit_term = Term::from_field_text(self.unit_field, &unit.format_without_scale());
                 let unit_filter = TermQuery::new(unit_term, IndexRecordOption::Basic);
                 queries.push((Occur::Must, Box::new(unit_filter)));
             } else {
@@ -248,7 +248,7 @@ impl Search {
                         let unit = value_to_string(doc.get_first(self.original_unit_field));
                         Some((
                             score,
-                            format!("[{}] {}{}{} {:?}", database, name, alt_name, location, unit),
+                            format!("[{}] {}{}{} {}", database, name, alt_name, location, unit),
                         ))
                     }
                     Err(_) => None,
