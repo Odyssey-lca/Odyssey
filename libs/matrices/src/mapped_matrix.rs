@@ -283,13 +283,17 @@ where
         };
 
         unsafe {
-            csparse_solve(
+            let error_code = csparse_solve(
                 &css,
                 &csn,
                 self.cs.n as i32,
                 rhs.values.as_ptr(),
                 res.as_mut_ptr(),
             );
+            if error_code != 0 {
+              dbg!(error_code);
+              return Err(Error::SolveFailed)
+            }
         }
 
         Ok(MappedVector::new(self.cols.clone(), res))

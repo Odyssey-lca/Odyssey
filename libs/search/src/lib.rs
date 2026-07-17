@@ -11,7 +11,7 @@ use tantivy::{TantivyError, schema::*};
 use units::parser::parse_unit;
 use units::unit::Unit;
 
-use crate::errors::SearchErrors::WrongDatabaseName;
+use crate::errors::SearchErrors::InvalidDatabaseName;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct InventoryItem {
@@ -24,6 +24,7 @@ pub struct InventoryItem {
     pub orignal_unit: String,
 }
 
+#[derive(Debug)]
 pub struct SearchResult {
     pub score: f32,
     pub id: String,
@@ -51,7 +52,7 @@ pub struct Search {
 }
 
 impl Search {
-    pub fn load(path: &Path) -> tantivy::Result<Self> {
+    pub fn load(path: &Path) -> Result<Self> {
         let mut schema_builder = Schema::builder();
         let id_field = schema_builder.add_text_field("id", STRING | STORED);
         let exact_name_field = schema_builder.add_text_field("exact_name", STRING | STORED);
@@ -89,7 +90,7 @@ impl Search {
         })
     }
 
-    pub fn index_database(&self, candidates: Vec<&InventoryItem>) -> tantivy::Result<()> {
+    pub fn index_database(&self, candidates: Vec<&InventoryItem>) -> Result<()> {
         let mut index_writer: IndexWriter = self.index.writer(50_000_000)?;
 
         for item in candidates {
@@ -117,7 +118,7 @@ impl Search {
         Ok(())
     }
 
-    pub fn contains_id(&self, id: &str) -> tantivy::Result<bool> {
+    pub fn contains_id(&self, id: &str) -> Result<bool> {
         let term = Term::from_field_text(self.id_field, id);
         let query = TermQuery::new(term, IndexRecordOption::Basic);
         let searcher = self.reader.searcher();
@@ -186,11 +187,12 @@ impl Search {
         database: Option<&str>,
         localisation: Option<&str>,
         unit: Option<&str>,
+        exact_name: bool,
         limit: Option<usize>
     ) -> Result<Vec<SearchResult>> {
         let searcher = self.reader.searcher();
         let search_results =
-            self._get_search_results(query, database, localisation, unit, false, limit)?;
+            self._get_search_results(query, database, localisation, unit, exact_name, limit)?;
         search_results
             .into_iter()
             .map(|(score, address)| {
@@ -225,9 +227,9 @@ fn extract_database_infos(infos: String) -> Result<(String, String)> {
     let mut split_infos = infos.split("_");
     let name = split_infos
         .next()
-        .ok_or(WrongDatabaseName(infos.to_string()))?;
+        .ok_or(InvalidDatabaseName(infos.to_string()))?;
     let version = split_infos
         .next()
-        .ok_or(WrongDatabaseName(infos.to_string()))?;
+        .ok_or(InvalidDatabaseName(infos.to_string()))?;
     Ok((name.to_string(), version.to_string()))
 }

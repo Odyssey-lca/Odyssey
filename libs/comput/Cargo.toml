@@ -7,7 +7,8 @@ edition = "2024"
 search = { path = "../search"}
 matrices = { path = "../matrices"}
 errors = { path = "../errors"}
-strum = { workspace = true }
-strum_macros = { workspace = true }
+units = { path = "../units"}
+databases = { path = "../databases"}
 serde = { workspace = true }
-bimap = { workspace = true }
+thiserror = { workspace = true }
+rayon = { workspace = true }

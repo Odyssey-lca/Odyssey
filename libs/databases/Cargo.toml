@@ -7,7 +7,6 @@ edition = "2024"
 quick-xml = { version = "0.37.4", features = ["serde", "serialize"] }
 units = { path = "../units"}
 matrices = { path = "../matrices"}
-comput = { path = "../comput"}
 errors = { path = "../errors"}
 search = { path = "../search"}
 git2 = "0.20.2"
@@ -16,3 +15,6 @@ serde = { workspace = true }
 csv = { workspace = true }
 uuid = { workspace = true }
 bincode = { workspace = true }
+strum = { workspace = true }
+strum_macros = { workspace = true }
+bimap = { workspace = true }

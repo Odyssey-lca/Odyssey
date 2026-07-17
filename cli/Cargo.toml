@@ -10,7 +10,7 @@ once_cell = "1.21.3"
 tantivy = { workspace = true }
 thiserror = { workspace = true }
 colored = { workspace = true }
-serde = { workspace = true }
+serde = { workspace = true, features = ["derive", "rc"]  }
 serde_json = { workspace = true }
 dirs = { workspace = true }
 console = { workspace = true }

@@ -1,5 +1,5 @@
 use errors::Result;
-use comput::impacts::ImpactCategory;
+use crate::impacts::ImpactCategory;
 use csv::Reader;
 use matrices::{MappedMatrix, MappedMatrixBuilder, MappedVector};
 use std::{fs::File, path::Path};

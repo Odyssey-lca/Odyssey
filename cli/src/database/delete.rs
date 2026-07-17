@@ -44,7 +44,6 @@ pub fn unregister_database(kind: &DatabaseKind, version: &str) -> Result<()> {
   let f = File::open(&*DATABASES_FILE)?;
   let reader = BufReader::new(&f);
   let mut databases: Vec<ImportDatabaseArgs> = serde_json::from_reader(reader)?;
-  let f = File::create(&*DATABASES_FILE)?;
   if let Some(index) = databases
       .iter()
       .position(|d| d.kind == *kind && d.version == version)
@@ -54,6 +53,7 @@ pub fn unregister_database(kind: &DatabaseKind, version: &str) -> Result<()> {
       eprintln!("No database found!");
       return Ok(());
   }
+  let f = File::create(&*DATABASES_FILE)?;
   let mut writer = BufWriter::new(f);
   if databases.is_empty() {
       write!(&mut writer, "[]")?;

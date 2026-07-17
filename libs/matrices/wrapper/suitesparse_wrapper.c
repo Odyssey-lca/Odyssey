@@ -18,7 +18,7 @@ int csparse_solve(const css *S, const csn *N, int n, const double *rhs,
   // Temporary vector to hold intermediate values
   double *x = cs_malloc(n, sizeof(double));
   if (!x)
-    return 0;
+    return 1;
 
   // Apply permutation: x = P * rhs
   cs_ipvec(N->pinv, rhs, x, n); // P * b
@@ -33,7 +33,7 @@ int csparse_solve(const css *S, const csn *N, int n, const double *rhs,
   cs_ipvec(S->q, x, y, n); // P' * x
 
   cs_free(x);
-  return 1;
+  return 0;
 }
 
 int csparse_matvec(const cs *A, const double *rhs, double *y) {

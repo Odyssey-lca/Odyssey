@@ -35,13 +35,7 @@ macro_rules! test_convert_unit_success {
             let u2 = units::parser::parse_unit($unit2).unwrap();
             let result = (u1.convert(&u2)).expect("Impossible conversion");
 
-            assert_eq!(result.dimension.length, $length);
-            assert_eq!(result.dimension.mass, $mass);
-            assert_eq!(result.dimension.time, $time);
-            assert_eq!(result.dimension.current, $current);
-            assert_eq!(result.dimension.temperature, $temperature);
-            assert_eq!(result.dimension.amount, $amount);
-            assert_eq!(result.scale_to_si, $scale);
+            assert_eq!(result, $scale);
         }
     };
 }

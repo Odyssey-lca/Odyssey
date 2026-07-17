@@ -3,7 +3,7 @@ use std::{collections::HashMap, path::Path};
 use crate::ecospold2::impacts::{
     cml::get_cml_matrix, ef31::get_ef31_matrix, traci::get_traci_matrix,
 };
-use comput::impacts::ImpactCategory;
+use crate::impacts::ImpactCategory;
 use errors::Result;
 use matrices::MappedMatrix;
 

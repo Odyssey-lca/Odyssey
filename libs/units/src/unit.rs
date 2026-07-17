@@ -25,20 +25,18 @@ impl Unit {
     /// let second = parse_unit("s").unwrap();
     /// 
     /// // Successful conversion (same dimensions)
-    /// if let Some(converted) = hour.convert(&second) {
-    ///     assert_eq!(converted.scale_to_si, 3600.0);
+    /// if let Some(scale) = hour.convert(&second) {
+    ///     assert_eq!(scale, 3600.0);
     /// }
     /// 
     /// // Failed conversion (different dimensions: time to length)
     /// let meter = parse_unit("m").unwrap();
     /// assert!(hour.convert(&meter).is_none());
     /// ```
-    pub fn convert(&self, to: &Unit) -> Option<Unit> {
+    pub fn convert(&self, to: &Unit) -> Option<f64> {
         if self.dimension == to.dimension && self.substance == to.substance {
-            let scale_to_si = self.scale_to_si / to.scale_to_si;
-            let dimension = self.dimension;
-            let substance = self.substance.clone();
-            Some(Unit { dimension, scale_to_si, substance })
+            let scale = self.scale_to_si / to.scale_to_si;
+            Some(scale)
         } else {
             None
         }

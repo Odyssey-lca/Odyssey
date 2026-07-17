@@ -7,8 +7,7 @@ use clap::{Parser, Subcommand};
 use database::DatabaseCommandes;
 
 use crate::{
-    run::{run_lca, RunCommand},
-    search::{cli_search, SearchCommand},
+    run::{RunCommand, run}, search::{SearchCommand, cli_search},
 };
 
 #[derive(Parser)]
@@ -24,7 +23,7 @@ pub struct Cli {
 }
 
 impl Cli {
-    pub fn exec(self) -> crate::run::errors::Result<()> {
+    pub fn exec(self) -> crate::run::errors::run_errors::Result<()> {
         match self.command {
             Commands::Database(args) => {
                 args.parse();
@@ -33,7 +32,7 @@ impl Cli {
                 cli_search(args)?;
             },
             Commands::Run(args) => {
-                run_lca(&args.path, args.method)?;
+                run(&args.path, args.method)?;
             },
         }
         Ok(())

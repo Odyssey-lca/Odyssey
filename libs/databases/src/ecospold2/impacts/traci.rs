@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use matrices::{MappedMatrix, MappedMatrixBuilder};
-use comput::impacts::{traci::TRACI, ImpactCategory};
+use crate::impacts::{traci::TRACI, ImpactCategory};
 use errors::Result;
 use super::misc::{get_ecoinvent_mapping_file, get_empty_matrix};
 

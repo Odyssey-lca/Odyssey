@@ -9,6 +9,7 @@ pub enum Error {
     SymbolicAnalysisFailed,
     NumericFactorizationFailed,
     MatrixMulFailed,
+    SolveFailed,
 }
 
 impl fmt::Display for Error {
@@ -23,6 +24,7 @@ impl fmt::Display for Error {
             Error::SymbolicAnalysisFailed => write!(f, "symbolic analysis failed"),
             Error::NumericFactorizationFailed => write!(f, "numeric factorization failed"),
             Error::MatrixMulFailed => write!(f, "matrix multiplication failed"),
+            Error::SolveFailed => write!(f, "solve returned a non null code"),
         }
     }
 }

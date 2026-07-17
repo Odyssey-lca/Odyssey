@@ -6,7 +6,7 @@ use std::{
 };
 
 use clap::Args;
-use comput::lca::Database;
+use databases::Database;
 use console::style;
 use indicatif::ProgressBar;
 use databases::ecospold2::Ecoinvent;

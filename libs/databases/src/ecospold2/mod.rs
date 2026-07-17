@@ -6,8 +6,8 @@ use std::fs::{self, File};
 use std::io::{BufReader, BufWriter};
 use std::{collections::HashMap, path::Path};
 
-use comput::impacts::ImpactCategory;
-use comput::lca::Database;
+use crate::impacts::{ImpactCategory};
+use super::Database;
 use errors::Result;
 use search::InventoryItem;
 

@@ -43,6 +43,7 @@ pub fn cli_search(args: SearchCommand) -> Result<()> {
         args.database.as_deref(),
         args.location.as_deref(),
         args.unit.as_deref(),
+        false,
         Some(args.number),
     )?;
     print!("{}", format_result(search_results, args.format));

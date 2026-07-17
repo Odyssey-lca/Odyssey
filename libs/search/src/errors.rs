@@ -5,7 +5,7 @@ pub type Result<T> = std::result::Result<T, SearchErrors>;
 pub enum SearchErrors {
     #[error("{0:?}")]
     TantivyError(#[from] tantivy::TantivyError),
-    
+
     #[error("{0:?}")]
-    WrongDatabaseName(String),
+    InvalidDatabaseName(String),
 }
