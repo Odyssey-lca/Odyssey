@@ -1,0 +1,14 @@
+[package]
+name = "comput"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+search = { path = "../search"}
+matrices = { path = "../matrices"}
+errors = { path = "../errors"}
+units = { path = "../units"}
+databases = { path = "../databases"}
+serde = { workspace = true }
+thiserror = { workspace = true }
+rayon = { workspace = true }

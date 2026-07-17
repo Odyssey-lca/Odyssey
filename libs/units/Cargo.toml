@@ -1,0 +1,15 @@
+[package]
+name = "units"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+lazy_static = "1.5.0"
+pest = { version = "2.8.6" }
+pest_derive = "2.8.6"
+phf = { version = "0.13.1", features = ["macros"] }
+serde = { workspace = true, features = ["derive"] }
+
+[build-dependencies]
+phf = { version = "0.13.1", default-features = false }
+phf_codegen = "0.13.1"

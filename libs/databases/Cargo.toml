@@ -1,0 +1,20 @@
+[package]
+name = "databases"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+quick-xml = { version = "0.37.4", features = ["serde", "serialize"] }
+units = { path = "../units"}
+matrices = { path = "../matrices"}
+errors = { path = "../errors"}
+search = { path = "../search"}
+git2 = "0.20.2"
+rayon = { workspace = true }
+serde = { workspace = true }
+csv = { workspace = true }
+uuid = { workspace = true }
+bincode = { workspace = true }
+strum = { workspace = true }
+strum_macros = { workspace = true }
+bimap = { workspace = true }
